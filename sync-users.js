@@ -27,11 +27,12 @@ async function fetchSupabaseUsers() {
   }
 }
 
+// Use only the date portion, which works with or without "Include time" in Airtable
 function formatAirtableDate(dateString) {
   try {
-    return new Date(dateString).toISOString().split('.')[0] + 'Z';
+    return new Date(dateString).toISOString().split('T')[0]; // YYYY-MM-DD
   } catch {
-    return new Date().toISOString().split('.')[0] + 'Z';
+    return new Date().toISOString().split('T')[0];
   }
 }
 
