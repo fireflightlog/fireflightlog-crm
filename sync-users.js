@@ -6,19 +6,23 @@ const {
   AIRTABLE_USERS_TABLE,
   SUPABASE_URL,
   SUPABASE_SERVICE_ROLE_KEY,
-  SUPABASE_USERS_TABLE
 } = process.env;
+
+const SUPABASE_VIEW = 'department_member_profiles_view';
 
 async function fetchSupabaseUsers() {
   try {
-    const { data } = await axios.get(`${SUPABASE_URL}/rest/v1/${SUPABASE_USERS_TABLE}`, {
-      headers: {
-        apiKey: SUPABASE_SERVICE_ROLE_KEY,
-        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-        'Content-Type': 'application/json',
-      },
-    });
-    console.log(`✅ Fetched ${data.length} user(s) from Supabase`);
+    const { data } = await axios.get(
+      `${SUPABASE_URL}/rest/v1/${SUPABASE_VIEW}?select=profile_id,first_name,surname,email,department_id,departments(name),created_at`,
+      {
+        headers: {
+          apiKey: SUPABASE_SERVICE_ROLE_KEY,
+          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    console.log(`✅ Fetched ${data.length} user(s) from Supabase view`);
     console.log('🔎 User data:', JSON.stringify(data, null, 2));
     return data;
   } catch (err) {
@@ -38,14 +42,18 @@ function formatAirtableDate(dateString) {
 
 async function pushToAirtable(users) {
   for (const user of users) {
+    const fullName = [user.first_name, user.surname].filter(Boolean).join(' ') || user.email || '';
+    const departmentName = user.departments?.name || '';
+
     const payload = {
       fields: {
-        'Full Name': user.full_name || user.email || '',
+        'Full Name': fullName,
         'Email': user.email || '',
-        'Supabase UID': user.id || '',
+        'Supabase UID': user.profile_id || '',
         'Enterprise Access': false,
         'Select': 'Pending',
         'Created At': formatAirtableDate(user.created_at),
+        'Department': departmentName,
         'Notes': ''
       }
     };
