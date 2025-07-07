@@ -3,7 +3,7 @@ name: Sync Supabase to Airtable
 on:
   schedule:
     - cron: '0 */12 * * *' # Every 12 hours
-  workflow_dispatch:       # Allow manual trigger
+  workflow_dispatch:       # Allow manual trigger via GitHub UI
 
 jobs:
   sync:
@@ -22,7 +22,9 @@ jobs:
         run: npm install
 
       - name: Run sync script
-        run: node sync-users.js
+        run: |
+          echo "🔄 Starting Supabase → Airtable sync..."
+          node sync-users.js
         env:
           AIRTABLE_TOKEN: ${{ secrets.AIRTABLE_TOKEN }}
           AIRTABLE_BASE_ID: ${{ secrets.AIRTABLE_BASE_ID }}
