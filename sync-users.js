@@ -19,7 +19,7 @@ async function fetchSupabaseUsers() {
       },
     });
     console.log(`✅ Fetched ${data.length} user(s) from Supabase`);
-    console.log(data); // Log user data for debugging
+    console.log('🔎 User data:', JSON.stringify(data, null, 2)); // Pretty-print for clarity
     return data;
   } catch (err) {
     console.error('❌ Failed to fetch users from Supabase:', err.response?.data || err.message);
@@ -35,11 +35,13 @@ async function pushToAirtable(users) {
         'Email': user.email || '',
         'Supabase UID': user.id || '',
         'Enterprise Access': false,
-        'Onboarding Status': 'Pending',
+        'Select': 'Pending',
         'Created At': user.created_at || new Date().toISOString(),
         'Notes': ''
       }
     };
+
+    console.log('📤 Sending payload to Airtable:', JSON.stringify(payload, null, 2));
 
     try {
       const res = await axios.post(
@@ -53,8 +55,10 @@ async function pushToAirtable(users) {
         }
       );
       console.log(`✅ Created Airtable record: ${res.data.id} for ${user.email}`);
+      console.log('📥 Airtable response:', JSON.stringify(res.data, null, 2));
     } catch (err) {
-      console.error(`❌ Failed to push ${user.email} to Airtable:`, err.response?.data || err.message);
+      console.error(`❌ Failed to push ${user.email} to Airtable.`);
+      console.error('📛 Error details:', JSON.stringify(err.response?.data || err.message, null, 2));
     }
   }
 }
