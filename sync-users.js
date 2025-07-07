@@ -8,13 +8,13 @@ const {
   SUPABASE_SERVICE_ROLE_KEY,
 } = process.env;
 
-const SUPABASE_VIEW = 'department_member_profiles_view';
+const SUPABASE_TABLE = 'profiles';
 
-// Fetch users from Supabase view
+// Fetch users from Supabase with optional department info
 async function fetchSupabaseUsers() {
   try {
     const { data } = await axios.get(
-      `${SUPABASE_URL}/rest/v1/${SUPABASE_VIEW}?select=profile_id,first_name,surname,email,department_id,departments(name)`,
+      `${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}?select=id,email,first_name,surname,created_at,department_members(department_id,departments(name))`,
       {
         headers: {
           apiKey: SUPABASE_SERVICE_ROLE_KEY,
@@ -23,7 +23,7 @@ async function fetchSupabaseUsers() {
         },
       }
     );
-    console.log(`✅ Fetched ${data.length} user(s) from Supabase view`);
+    console.log(`✅ Fetched ${data.length} user(s) from Supabase`);
     return data;
   } catch (err) {
     console.error('❌ Failed to fetch users from Supabase:', err.response?.data || err.message);
@@ -44,13 +44,13 @@ function formatAirtableDate(dateString) {
 async function pushToAirtable(users) {
   for (const user of users) {
     const fullName = [user.first_name, user.surname].filter(Boolean).join(' ') || user.email || '';
-    const departmentName = user.departments?.name || '';
+    const departmentName = user.department_members?.[0]?.departments?.name || '';
 
     const payload = {
       fields: {
         'Full Name': fullName,
         'Email': user.email || '',
-        'Supabase UID': user.profile_id || '',
+        'Supabase UID': user.id || '',
         'Enterprise Access': false,
         'Select': 'Pending',
         'Department': departmentName,
@@ -59,15 +59,12 @@ async function pushToAirtable(users) {
     };
 
     try {
-      // 🔎 Step 1: Search by email to find if record exists
       const searchUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_USERS_TABLE}?filterByFormula={Email}="${user.email}"`;
-
       const searchRes = await axios.get(searchUrl, {
         headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` },
       });
 
       if (searchRes.data.records.length > 0) {
-        // 🔁 Update existing record
         const recordId = searchRes.data.records[0].id;
 
         await axios.patch(
@@ -83,7 +80,6 @@ async function pushToAirtable(users) {
 
         console.log(`🔁 Updated Airtable record: ${recordId} for ${user.email}`);
       } else {
-        // ➕ Create new record
         const res = await axios.post(
           `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_USERS_TABLE}`,
           payload,
@@ -104,7 +100,7 @@ async function pushToAirtable(users) {
   }
 }
 
-// Execute
+// Run it
 (async () => {
   const users = await fetchSupabaseUsers();
   if (users.length === 0) {
