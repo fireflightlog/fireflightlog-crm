@@ -10,6 +10,7 @@ const {
 
 const SUPABASE_VIEW = 'department_member_profiles_view';
 
+// Fetch users from Supabase view
 async function fetchSupabaseUsers() {
   try {
     const { data } = await axios.get(
@@ -23,7 +24,6 @@ async function fetchSupabaseUsers() {
       }
     );
     console.log(`✅ Fetched ${data.length} user(s) from Supabase view`);
-    console.log('🔎 User data:', JSON.stringify(data, null, 2));
     return data;
   } catch (err) {
     console.error('❌ Failed to fetch users from Supabase:', err.response?.data || err.message);
@@ -31,6 +31,16 @@ async function fetchSupabaseUsers() {
   }
 }
 
+// Format date as YYYY-MM-DD
+function formatAirtableDate(dateString) {
+  try {
+    return new Date(dateString).toISOString().split('T')[0];
+  } catch {
+    return new Date().toISOString().split('T')[0];
+  }
+}
+
+// Push or update users in Airtable
 async function pushToAirtable(users) {
   for (const user of users) {
     const fullName = [user.first_name, user.surname].filter(Boolean).join(' ') || user.email || '';
@@ -48,28 +58,53 @@ async function pushToAirtable(users) {
       }
     };
 
-    console.log('📤 Sending payload to Airtable:', JSON.stringify(payload, null, 2));
-
     try {
-      const res = await axios.post(
-        `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_USERS_TABLE}`,
-        payload,
-        {
-          headers: {
-            Authorization: `Bearer ${AIRTABLE_TOKEN}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-      console.log(`✅ Created Airtable record: ${res.data.id} for ${user.email}`);
-      console.log('📥 Airtable response:', JSON.stringify(res.data, null, 2));
+      // 🔎 Step 1: Search by email to find if record exists
+      const searchUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_USERS_TABLE}?filterByFormula={Email}="${user.email}"`;
+
+      const searchRes = await axios.get(searchUrl, {
+        headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` },
+      });
+
+      if (searchRes.data.records.length > 0) {
+        // 🔁 Update existing record
+        const recordId = searchRes.data.records[0].id;
+
+        await axios.patch(
+          `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_USERS_TABLE}/${recordId}`,
+          payload,
+          {
+            headers: {
+              Authorization: `Bearer ${AIRTABLE_TOKEN}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+
+        console.log(`🔁 Updated Airtable record: ${recordId} for ${user.email}`);
+      } else {
+        // ➕ Create new record
+        const res = await axios.post(
+          `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_USERS_TABLE}`,
+          payload,
+          {
+            headers: {
+              Authorization: `Bearer ${AIRTABLE_TOKEN}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+
+        console.log(`✅ Created new Airtable record: ${res.data.id} for ${user.email}`);
+      }
     } catch (err) {
-      console.error(`❌ Failed to push ${user.email} to Airtable.`);
+      console.error(`❌ Failed to sync ${user.email} to Airtable.`);
       console.error('📛 Error details:', JSON.stringify(err.response?.data || err.message, null, 2));
     }
   }
 }
 
+// Execute
 (async () => {
   const users = await fetchSupabaseUsers();
   if (users.length === 0) {
