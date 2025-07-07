@@ -8,13 +8,21 @@ const {
   SUPABASE_SERVICE_ROLE_KEY,
 } = process.env;
 
-const SUPABASE_VIEW = 'profiles_with_departments'; // updated view must include users with and without departments
+const SUPABASE_VIEW = 'profiles_with_departments';
 
-// Fetch users from Supabase view
+// Format ISO date to Airtable's YYYY-MM-DD
+function formatAirtableDate(dateString) {
+  try {
+    return new Date(dateString).toISOString().split('T')[0];
+  } catch {
+    return new Date().toISOString().split('T')[0];
+  }
+}
+
 async function fetchSupabaseUsers() {
   try {
     const { data } = await axios.get(
-      `${SUPABASE_URL}/rest/v1/${SUPABASE_VIEW}?select=profile_id,first_name,surname,email,department_id,department_name`,
+      `${SUPABASE_URL}/rest/v1/${SUPABASE_VIEW}?select=profile_id,first_name,surname,email,tier,profile_created_at,department_name`,
       {
         headers: {
           apiKey: SUPABASE_SERVICE_ROLE_KEY,
@@ -31,35 +39,25 @@ async function fetchSupabaseUsers() {
   }
 }
 
-// Format date as YYYY-MM-DD
-function formatAirtableDate(dateString) {
-  try {
-    return new Date(dateString).toISOString().split('T')[0];
-  } catch {
-    return new Date().toISOString().split('T')[0];
-  }
-}
-
-// Push or update users in Airtable
 async function pushToAirtable(users) {
   for (const user of users) {
     const fullName = [user.first_name, user.surname].filter(Boolean).join(' ') || user.email || '';
-    const departmentName = user.department_name || '';
+    const isEnterprise = user.tier?.toLowerCase() === 'enterprise';
 
     const payload = {
       fields: {
         'Full Name': fullName,
         'Email': user.email || '',
         'Supabase UID': user.profile_id || '',
-        'Enterprise Access': false,
+        'Enterprise Access': isEnterprise,
         'Select': 'Pending',
-        'Department': departmentName,
+        'Created At': formatAirtableDate(user.profile_created_at),
+        'Department': user.department_name || '',
         'Notes': ''
       }
     };
 
     try {
-      // 🔎 Step 1: Search by Supabase UID to find if record exists
       const searchUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_USERS_TABLE}?filterByFormula={Supabase UID}="${user.profile_id}"`;
 
       const searchRes = await axios.get(searchUrl, {
@@ -67,7 +65,6 @@ async function pushToAirtable(users) {
       });
 
       if (searchRes.data.records.length > 0) {
-        // 🔁 Update existing record
         const recordId = searchRes.data.records[0].id;
 
         await axios.patch(
@@ -80,10 +77,8 @@ async function pushToAirtable(users) {
             },
           }
         );
-
         console.log(`🔁 Updated Airtable record: ${recordId} for ${user.email}`);
       } else {
-        // ➕ Create new record
         const res = await axios.post(
           `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_USERS_TABLE}`,
           payload,
@@ -94,7 +89,6 @@ async function pushToAirtable(users) {
             },
           }
         );
-
         console.log(`✅ Created new Airtable record: ${res.data.id} for ${user.email}`);
       }
     } catch (err) {
@@ -104,7 +98,6 @@ async function pushToAirtable(users) {
   }
 }
 
-// Execute
 (async () => {
   const users = await fetchSupabaseUsers();
   if (users.length === 0) {
