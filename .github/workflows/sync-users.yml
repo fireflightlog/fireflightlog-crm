@@ -2,15 +2,15 @@ name: Sync Supabase to Airtable
 
 on:
   schedule:
-    - cron: '0 */12 * * *' # Every 12 hours
-  workflow_dispatch:       # Allow manual trigger via GitHub UI
+    - cron: '0 */12 * * *'  # Runs every 12 hours
+  workflow_dispatch:         # Allows manual trigger from GitHub UI
 
 jobs:
   sync:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v3
 
       - name: Set up Node.js
