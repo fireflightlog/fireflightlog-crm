@@ -13,7 +13,7 @@ const SUPABASE_VIEW = 'department_member_profiles_view';
 async function fetchSupabaseUsers() {
   try {
     const { data } = await axios.get(
-      `${SUPABASE_URL}/rest/v1/${SUPABASE_VIEW}?select=profile_id,first_name,surname,email,department_id,departments(name),created_at`,
+      `${SUPABASE_URL}/rest/v1/${SUPABASE_VIEW}?select=profile_id,first_name,surname,email,department_id,departments(name)`,
       {
         headers: {
           apiKey: SUPABASE_SERVICE_ROLE_KEY,
@@ -31,15 +31,6 @@ async function fetchSupabaseUsers() {
   }
 }
 
-// Use only the date portion, which works with or without "Include time" in Airtable
-function formatAirtableDate(dateString) {
-  try {
-    return new Date(dateString).toISOString().split('T')[0]; // YYYY-MM-DD
-  } catch {
-    return new Date().toISOString().split('T')[0];
-  }
-}
-
 async function pushToAirtable(users) {
   for (const user of users) {
     const fullName = [user.first_name, user.surname].filter(Boolean).join(' ') || user.email || '';
@@ -52,7 +43,6 @@ async function pushToAirtable(users) {
         'Supabase UID': user.profile_id || '',
         'Enterprise Access': false,
         'Select': 'Pending',
-        'Created At': formatAirtableDate(user.created_at),
         'Department': departmentName,
         'Notes': ''
       }
