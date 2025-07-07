@@ -19,7 +19,7 @@ async function fetchSupabaseUsers() {
       },
     });
     console.log(`✅ Fetched ${data.length} user(s) from Supabase`);
-    console.log('🔎 User data:', JSON.stringify(data, null, 2)); // Pretty-print for clarity
+    console.log('🔎 User data:', JSON.stringify(data, null, 2));
     return data;
   } catch (err) {
     console.error('❌ Failed to fetch users from Supabase:', err.response?.data || err.message);
@@ -27,16 +27,24 @@ async function fetchSupabaseUsers() {
   }
 }
 
+function formatAirtableDate(dateString) {
+  try {
+    return new Date(dateString).toISOString().split('.')[0] + 'Z';
+  } catch {
+    return new Date().toISOString().split('.')[0] + 'Z';
+  }
+}
+
 async function pushToAirtable(users) {
   for (const user of users) {
     const payload = {
       fields: {
-        'Full Name': user.full_name || '',
+        'Full Name': user.full_name || user.email || '',
         'Email': user.email || '',
         'Supabase UID': user.id || '',
         'Enterprise Access': false,
         'Select': 'Pending',
-        'Created At': user.created_at || new Date().toISOString(),
+        'Created At': formatAirtableDate(user.created_at),
         'Notes': ''
       }
     };
