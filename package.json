@@ -1,0 +1,25 @@
+{
+  "name": "fireflightlog-crm-sync",
+  "version": "1.0.0",
+  "description": "",
+  "main": "sync-users.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fireflightlog/fireflightlog-crm.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/fireflightlog/fireflightlog-crm/issues"
+  },
+  "homepage": "https://github.com/fireflightlog/fireflightlog-crm#readme",
+  "dependencies": {
+    "axios": "^1.10.0",
+    "dotenv": "^17.0.1"
+  }
+}
